@@ -327,7 +327,8 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
     for enz in enzyme_list:
         if enz in enzyme_counts.keys():
             enzyme_sd[enz] = 0
-            enzyme_sd[enz] = numpy.std(numpy.log2(list(enzyme_counts[enz].values())), dtype=numpy.float64)
+            # enzyme_sd[enz] = numpy.std(numpy.log2(list(enzyme_counts[enz].values())), dtype=numpy.float64)
+            enzyme_sd[enz] = numpy.var(list(enzyme_counts[enz].values()), dtype=numpy.float64)
         else:
             # remove enzyme from enzymeList
             enzyme_list.remove(enz)
