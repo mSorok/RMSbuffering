@@ -22,14 +22,6 @@ import operator
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatch
 
-import rpy2
-from rpy2 import robjects
-from rpy2.robjects import Formula, Environment
-from rpy2.robjects.vectors import IntVector, FloatVector
-from rpy2.robjects.lib import grid
-from rpy2.rinterface import RRuntimeError
-import rpy2.robjects as ro
-from rpy2.robjects.packages import importr
 import warnings
 
 
@@ -47,8 +39,10 @@ def print_all_pairs_data(biglist, outfile):
     # 9 : sd_fc_pair
     # 10 : sd_reduction_score_fc
     # 11 : mean_fc_pair
-    # 12 : in same group
-    # 13 : data type ("RNA" or "protein")
+    # 12 : p-val pitman_morgan N
+    # 13 : p-val pitman_morgan H
+    # 14 : in same group
+    # 15 : data type ("RNA" or "protein")
 
     fo = open(outfile, "w")
 
@@ -66,8 +60,8 @@ def print_all_pairs_data(biglist, outfile):
             biglist[pair][4]) + "\t" + str(corr_h) + "\t" + str(biglist[pair][6]) + "\t" + str(
             biglist[pair][7]) + "\t" + str(biglist[pair][8]) + "\t" + str(
             biglist[pair][9]) + "\t" + str(biglist[pair][10]) + "\t" + str(
-            biglist[pair][11]) + "\t" + str(biglist[pair][12]) + "\t" + str(
-            biglist[pair][13]) + "\n"
+            biglist[pair][11]) + "\t" + str(biglist[pair][12]) + "\t" + str(biglist[pair][13]) + "\t" + str(
+            biglist[pair][14]) + "\t" + str(biglist[pair][15]) + "\n"
         fo.write(outstring)
 
     fo.close()
