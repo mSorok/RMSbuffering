@@ -43,8 +43,8 @@ def analyse_pair(pair, enzyme_counts):
             if strain in sump.keys():
                 sump[strain]=sump[strain]+enzyme_counts[pair[1]][strain]
 
-    pair_sd = numpy.std([numpy.log2(x) for x in list(sump.values()) if x > 0], dtype=numpy.float64)
-
+    # pair_sd = numpy.std([numpy.log2(x) for x in list(sump.values()) if x > 0], dtype=numpy.float64)
+    pair_sd = numpy.var([x for x in list(sump.values()) if x > 0], dtype=numpy.float64)
     pair_gmean = gmean([numpy.log2(x) for x in list(sump.values()) if x > 0], dtype=numpy.float64)
 
     pair_correlation=0
