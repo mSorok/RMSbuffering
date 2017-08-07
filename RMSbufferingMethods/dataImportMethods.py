@@ -134,21 +134,27 @@ def retrieve_pair_enzyme_data_for_tests_pombe(*args, **kwargs):
 
     # analysis for enzyme pairs
     for pair in itertools.combinations(enzyme_list, 2):
-        gmean_sum_H, pair_sd_H, pair_correlation_H = dataAnalysisMethods.analyse_pair(pair, enzyme_counts_H)
-        gmean_sum_N, pair_sd_N, pair_correlation_N = dataAnalysisMethods.analyse_pair(pair, enzyme_counts_N)
+
+        gmean_sum_H, pair_sd_H, pair_correlation_H, sd_reduction_score_H_min, pval_pitman_morgan_H = \
+            dataAnalysisMethods.analyse_pair(pair, enzyme_counts_H)
+
+        gmean_sum_N, pair_sd_N, pair_correlation_N, sd_reduction_score_N_min, pval_pitman_morgan_N = \
+            dataAnalysisMethods.analyse_pair(pair, enzyme_counts_N)
 
         delta_sd = pair_sd_N - pair_sd_H
 
-        sd_fc_pair, sd_reduction_fc_min, mean_fc_pair = dataAnalysisMethods.analyse_pair_fold_change(pair, enzyme_counts_N, enzyme_counts_H)
+        sd_fc_pair, sd_reduction_fc_min, mean_fc_pair = \
+            dataAnalysisMethods.analyse_pair_fold_change(pair, enzyme_counts_N, enzyme_counts_H)
 
-        sd_reduction_score_N_min = pair_sd_N - min([enzyme_sd[pair[0]][0], enzyme_sd[pair[1]][0]])
-        sd_reduction_score_H_min = pair_sd_H - min([enzyme_sd[pair[0]][1], enzyme_sd[pair[1]][1]])
+        # sd_reduction_score_N_min = pair_sd_N - min([enzyme_sd[pair[0]][0], enzyme_sd[pair[1]][0]])
+        # sd_reduction_score_H_min = pair_sd_H - min([enzyme_sd[pair[0]][1], enzyme_sd[pair[1]][1]])
 
         same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
 
         pair_var_cor[pair] = [gmean_sum_N, pair_sd_N, pair_correlation_N, gmean_sum_H, pair_sd_H, pair_correlation_H,
                               delta_sd, sd_reduction_score_N_min, sd_reduction_score_H_min, sd_fc_pair,
-                              sd_reduction_fc_min, mean_fc_pair, same_group, "RNA"]
+                              sd_reduction_fc_min, mean_fc_pair,pval_pitman_morgan_N, pval_pitman_morgan_H,
+                              same_group, "RNA"]
 
     return pair_var_cor  # , pairs_no_positive_interaction, pairs_no_negative_interaction
 
