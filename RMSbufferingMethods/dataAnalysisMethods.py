@@ -44,40 +44,59 @@ def analyse_pair(pair, enzyme_counts):
     common_strains = set(enzyme_counts[pair[0]].keys()).intersection(set(enzyme_counts[pair[1]].keys()))
 
     # sump = enzyme_counts[pair[0]].copy()
-    sump={}
+    sump = {}
     for strain in common_strains:
             # if strain in sump.keys():
-            sump[strain] = enzyme_counts[pair[0]][strain] + enzyme_counts[pair[1]][strain]  # sump[strain]+enzyme_counts[pair[1]][strain]
+            sump[strain] = enzyme_counts[pair[0]][strain] + enzyme_counts[pair[1]][strain]  # numpy.log2((enzyme_counts[pair[0]][strain] + enzyme_counts[pair[1]][strain] ) )
     # select strains in sump that are only in common_strains
 
     # pair_sd = numpy.std([numpy.log2(x) for x in list(sump.values()) if x > 0], dtype=numpy.float64)
-    pair_sd = numpy.var([x for x in list(sump.values()) if x > 0], dtype=numpy.float64)
-    pair_gmean = gmean([numpy.log2(x) for x in list(sump.values()) if x > 0], dtype=numpy.float64)
+    #pair_sd = numpy.var([x for x in list(sump.values()) if x > 0], dtype=numpy.float64)
+    pair_sd = numpy.std([sump[x] for x in common_strains], dtype=numpy.float64)
+    pair_gmean = gmean([x for x in list(sump.values()) if x > 0], dtype=numpy.float64)
 
-    values_enz1 = [numpy.log2(enzyme_counts[pair[0]][x]) for x in common_strains ]
-    values_enz2 = [numpy.log2(enzyme_counts[pair[1]][x]) for x in common_strains ]
+    values_enz1 = [enzyme_counts[pair[0]][x] for x in common_strains ]  # [numpy.log2( enzyme_counts[pair[0]][x] ) for x in common_strains ]
+    values_enz2 = [enzyme_counts[pair[1]][x] for x in common_strains ]  # [numpy.log2( enzyme_counts[pair[1]][x] ) for x in common_strains ]
 
     sd_enz1 = numpy.std(values_enz1, dtype=numpy.float64)
     sd_enz2 = numpy.std(values_enz2, dtype=numpy.float64)
-    sd_reduction_score_min = pair_sd - min(sd_enz1, sd_enz2)
 
 
+    # pval_pm_sum_enz1 = pitman_morgan_test.pitman_morgan_test([numpy.log2(x) for x in list(sump.values()) if x > 0],
+                                                            # values_enz1, "less", verbose=False)
 
-
-    pval_pm_sum_enz1 = pitman_morgan_test.pitman_morgan_test([numpy.log2(x) for x in list(sump.values()) if x > 0],
-                                                             values_enz1, "less", verbose=False)
-
-    pval_pm_sum_enz2 = pitman_morgan_test.pitman_morgan_test([numpy.log2(x) for x in list(sump.values()) if x > 0],
-                                                             values_enz2, "less", verbose=False)
-
+    # pval_pm_sum_enz2 = pitman_morgan_test.pitman_morgan_test([numpy.log2(x) for x in list(sump.values()) if x > 0],
+                                                            # values_enz2, "less", verbose=False)
+    pval_pm_sum_enz1 = 0 #pitman_morgan_test.pitman_morgan_test(list(sump.values()), values_enz1, "less", verbose=False)
+    pval_pm_sum_enz2 = 0 #pitman_morgan_test.pitman_morgan_test(list(sump.values()), values_enz2, "less", verbose=False)
     pair_correlation=0
-    #if len(list(enzyme_counts[pair[0]].values())) == len(list(enzyme_counts[pair[1]].values())):
+    # if len(list(enzyme_counts[pair[0]].values())) == len(list(enzyme_counts[pair[1]].values())):
     try:
         pair_correlation = scipy.stats.pearsonr(values_enz1, values_enz2)
     except FloatingPointError as err:
         print(str(pair[0])+"\t"+str(pair[1])+"\t"+str(err))
 
-    return pair_gmean, pair_sd, pair_correlation, sd_reduction_score_min, max(pval_pm_sum_enz1, pval_pm_sum_enz2)
+    # sd_reduction_score_min = pair_sd - (2 * sd_enz1 * sd_enz2)/(sd_enz1 + sd_enz2) # <- harmonic mean
+    # sd_reduction_score_min = pair_sd - (min(sd_enz1, sd_enz2)) * pair_correlation[0]
+    # sd_reduction_score_min = pair_sd - min(sd_enz1, sd_enz2)
+    # sd_reduction_score_min = pair_sd / (sd_enz1 + sd_enz2)
+    # sd_reduction_score_min = pair_sd / min(sd_enz1 , sd_enz2)
+    # sd_reduction_score_min = scipy.stats.kurtosis([sump[x] for x in common_strains], fisher=False) - min(scipy.stats.kurtosis(values_enz1, fisher=False), scipy.stats.kurtosis(values_enz2, fisher=False))
+    # sd_reduction_score_min = numpy.std([sump[x] for x in common_strains]) - min(numpy.std(values_enz1), numpy.std(values_enz2))
+    # sd_reduction_score_min = numpy.std([sump[x] for x in common_strains])/scipy.stats.kurtosis([sump[x] for x in common_strains], fisher=False)  - min(numpy.std(values_enz1)/scipy.stats.kurtosis(values_enz1, fisher=False), numpy.std(values_enz2)/scipy.stats.kurtosis(values_enz2, fisher=False))
+
+    # sd_reduction_score_min = (numpy.std([sump[x] for x in common_strains]) - min(numpy.std(values_enz1), numpy.std(values_enz2)) ) * (scipy.stats.kurtosis([sump[x] for x in common_strains], fisher=False)/2)
+
+    sd_reduction_score_min = numpy.std([sump[x] for x in common_strains]) - min(numpy.std(values_enz1), numpy.std(values_enz2))
+
+    skew_reduction_score_min = abs(scipy.stats.skew([sump[x] for x in common_strains])) - min(abs(scipy.stats.skew(values_enz1)),abs(scipy.stats.skew(values_enz2)) )
+
+    kurtosis_reduction_score_min = scipy.stats.kurtosis([sump[x] for x in common_strains]) - min(scipy.stats.kurtosis(values_enz1), scipy.stats.kurtosis(values_enz2))
+
+    sdreduction_skew = (numpy.std([sump[x] for x in common_strains]) - min(numpy.std(values_enz1), numpy.std(values_enz2))*abs(scipy.stats.skew([sump[x] for x in common_strains])))
+
+
+    return pair_gmean, pair_sd, pair_correlation, sd_reduction_score_min, skew_reduction_score_min, sdreduction_skew, kurtosis_reduction_score_min,  max(pval_pm_sum_enz1, pval_pm_sum_enz2)
 
 ########################################################################################################################
 
@@ -117,6 +136,7 @@ def analyse_pair_fold_change(pair, enz_n, enz_h):
 
 
 def is_in_same_group(pair, enz_g_cpd):
+    #print(enz_g_cpd[pair[1]])
     anw = False
     if len(pair) == 2:
         if not set(enz_g_cpd[pair[0]] ).isdisjoint(enz_g_cpd[pair[1]]):

@@ -39,10 +39,16 @@ def print_all_pairs_data(biglist, outfile):
     # 9 : sd_fc_pair
     # 10 : sd_reduction_score_fc
     # 11 : mean_fc_pair
-    # 12 : p-val pitman_morgan N
-    # 13 : p-val pitman_morgan H
-    # 14 : in same group
-    # 15 : data type ("RNA" or "protein")
+    # 12 : skew_reduction_score_min_N
+    # 13 : skew_reduction_score_min_H
+    # 14 : kurtosis_reduction_score_min_N
+    # 15 : kurtosis_reduction_score_min_H
+    # 16 : sdreduction_skew_N
+    # 17 : sdreduction_skew_H
+    # 18 : p-val pitman_morgan N
+    # 19 : p-val pitman_morgan H
+    # 20 : in same group
+    # 21 : data type ("RNA" or "protein")
 
     fo = open(outfile, "w")
 
@@ -61,7 +67,9 @@ def print_all_pairs_data(biglist, outfile):
             biglist[pair][7]) + "\t" + str(biglist[pair][8]) + "\t" + str(
             biglist[pair][9]) + "\t" + str(biglist[pair][10]) + "\t" + str(
             biglist[pair][11]) + "\t" + str(biglist[pair][12]) + "\t" + str(biglist[pair][13]) + "\t" + str(
-            biglist[pair][14]) + "\t" + str(biglist[pair][15]) + "\n"
+            biglist[pair][14]) + "\t" + str(biglist[pair][15]) + "\t" + str(biglist[pair][16]) + "\t" + str(
+            biglist[pair][17]) + "\t" + str(biglist[pair][18]) + "\t" + str(biglist[pair][19]) + "\t" + str(
+            biglist[pair][20]) + "\t" + str(biglist[pair][21]) + "\n"
         fo.write(outstring)
 
     fo.close()
@@ -74,8 +82,9 @@ def print_all_pairs_data_cer(biglist, outfile):
     # 1: pais_sd
     # 2 : correlation
     # 3 : sd_reduction_score_min
-    # 4 : in same group
-    # 5 : data type ("RNA" or "protein")
+    # 4 : pvalue pitman morgan
+    # 5 : in same group
+    # 6 : data type ("RNA" or "protein")
 
     fo = open(outfile, "w")
 
@@ -86,7 +95,7 @@ def print_all_pairs_data_cer(biglist, outfile):
 
         outstring = pair[0] + "\t" + pair[1] + "\t" + str(biglist[pair][0]) + "\t" + str(
             biglist[pair][1]) + "\t" + str(corr) + "\t" + str(biglist[pair][3]) + "\t" + str(
-            biglist[pair][4]) + "\t" + str(biglist[pair][5]) + "\n"
+            biglist[pair][4]) + "\t" + str(biglist[pair][5]) + "\t" + str(biglist[pair][6]) + "\n"
         fo.write(outstring)
 
     fo.close()

@@ -116,8 +116,8 @@ def retrieve_pair_enzyme_data_for_tests_pombe(*args, **kwargs):
     for enz in enzyme_list:
         if enz in enzyme_counts_H.keys() and enz in enzyme_counts_H.keys():
             enzyme_sd[enz] = [0, 0, 0, 0, 0]  # 0:SD_N, 1:SD_H, 2:delta_SD, 3: mean of the fold change, 4: SD of FC
-            enzyme_sd[enz][0] = numpy.std(numpy.log2(list(enzyme_counts_N[enz].values())), dtype=numpy.float64)  # SD in N condition
-            enzyme_sd[enz][1] = numpy.std(numpy.log2(list(enzyme_counts_H[enz].values())), dtype=numpy.float64)  # SD in OXY condition
+            enzyme_sd[enz][0] = numpy.var(list(enzyme_counts_N[enz].values()), dtype=numpy.float64)  # SD in N condition
+            enzyme_sd[enz][1] = numpy.var(list(enzyme_counts_H[enz].values()), dtype=numpy.float64)  # SD in OXY condition
             enzyme_sd[enz][2] = numpy.absolute(
                 enzyme_sd[enz][0] - enzyme_sd[enz][1])  # DELTA variance between two conditions
 
@@ -134,27 +134,30 @@ def retrieve_pair_enzyme_data_for_tests_pombe(*args, **kwargs):
 
     # analysis for enzyme pairs
     for pair in itertools.combinations(enzyme_list, 2):
+        if pair[1] in enzyme_counts_H.keys() and pair[0] in enzyme_counts_H.keys():
 
-        gmean_sum_H, pair_sd_H, pair_correlation_H, sd_reduction_score_H_min, pval_pitman_morgan_H = \
-            dataAnalysisMethods.analyse_pair(pair, enzyme_counts_H)
+            gmean_sum_H, pair_sd_H, pair_correlation_H, sd_reduction_score_H_min, skew_reduction_score_min_H, sdreduction_skew_H, kurtosis_reduction_score_min_H, pval_pitman_morgan_H = \
+                dataAnalysisMethods.analyse_pair(pair, enzyme_counts_H)
 
-        gmean_sum_N, pair_sd_N, pair_correlation_N, sd_reduction_score_N_min, pval_pitman_morgan_N = \
-            dataAnalysisMethods.analyse_pair(pair, enzyme_counts_N)
+            gmean_sum_N, pair_sd_N, pair_correlation_N, sd_reduction_score_N_min, skew_reduction_score_min_N, sdreduction_skew_N, kurtosis_reduction_score_min_N, pval_pitman_morgan_N = \
+                dataAnalysisMethods.analyse_pair(pair, enzyme_counts_N)
 
-        delta_sd = pair_sd_N - pair_sd_H
+            delta_sd = pair_sd_N - pair_sd_H
 
-        sd_fc_pair, sd_reduction_fc_min, mean_fc_pair = \
-            dataAnalysisMethods.analyse_pair_fold_change(pair, enzyme_counts_N, enzyme_counts_H)
+            sd_fc_pair, sd_reduction_fc_min, mean_fc_pair = \
+                dataAnalysisMethods.analyse_pair_fold_change(pair, enzyme_counts_N, enzyme_counts_H)
 
-        # sd_reduction_score_N_min = pair_sd_N - min([enzyme_sd[pair[0]][0], enzyme_sd[pair[1]][0]])
-        # sd_reduction_score_H_min = pair_sd_H - min([enzyme_sd[pair[0]][1], enzyme_sd[pair[1]][1]])
+            # sd_reduction_score_N_min = pair_sd_N - min([enzyme_sd[pair[0]][0], enzyme_sd[pair[1]][0]])
+            # sd_reduction_score_H_min = pair_sd_H - min([enzyme_sd[pair[0]][1], enzyme_sd[pair[1]][1]])
 
-        same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
+            same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
 
-        pair_var_cor[pair] = [gmean_sum_N, pair_sd_N, pair_correlation_N, gmean_sum_H, pair_sd_H, pair_correlation_H,
-                              delta_sd, sd_reduction_score_N_min, sd_reduction_score_H_min, sd_fc_pair,
-                              sd_reduction_fc_min, mean_fc_pair,pval_pitman_morgan_N, pval_pitman_morgan_H,
-                              same_group, "RNA"]
+            pair_var_cor[pair] = [gmean_sum_N, pair_sd_N, pair_correlation_N, gmean_sum_H, pair_sd_H, pair_correlation_H,
+                                  delta_sd, sd_reduction_score_N_min, sd_reduction_score_H_min, sd_fc_pair,
+                                  sd_reduction_fc_min, mean_fc_pair, skew_reduction_score_min_N, skew_reduction_score_min_H,
+                                  kurtosis_reduction_score_min_N, kurtosis_reduction_score_min_H,
+                                  sdreduction_skew_N, sdreduction_skew_H,
+                                  pval_pitman_morgan_N, pval_pitman_morgan_H, same_group, "RNA"]
 
     return pair_var_cor  # , pairs_no_positive_interaction, pairs_no_negative_interaction
 
@@ -291,7 +294,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
         enzyme_counts = retrieve_count_data_cer(group_type, height=height)
 
         # classification retrieval
-        g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd(group_type, height)
+        g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd_cer(group_type, height)
         # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
         enzyme_list = retrieve_enzymes_to_study_cer(group_type, height)
 
@@ -301,7 +304,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
         enzyme_counts = retrieve_count_data_cer(group_type)
 
         # classification retrieval
-        g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd("EC", height)
+        g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd_cer("EC", height)
         # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
         enzyme_list = retrieve_enzymes_to_study_cer(group_type, height)
 
@@ -311,7 +314,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
         enzyme_counts = retrieve_count_data_cer(group_type)
 
         # classification retrieval
-        g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd(group_type, height)
+        g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd_cer(group_type, height)
 
         # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
         enzyme_list = retrieve_enzymes_to_study_cer(group_type, height)
@@ -324,24 +327,25 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
     # positive_gen_pairs = get_genetic_interactions("Positive")
 
     # analysis for individual enzymes
-    for enz in enzyme_list:
-        if enz in enzyme_counts.keys():
-            enzyme_sd[enz] = 0
-            # enzyme_sd[enz] = numpy.std(numpy.log2(list(enzyme_counts[enz].values())), dtype=numpy.float64)
-            enzyme_sd[enz] = numpy.var(list(enzyme_counts[enz].values()), dtype=numpy.float64)
-        else:
-            # remove enzyme from enzymeList
-            enzyme_list.remove(enz)
+    # for enz in enzyme_list:
+    #     if enz in enzyme_counts.keys():
+    #         enzyme_sd[enz] = 0
+    #         enzyme_sd[enz] = numpy.std(numpy.log2(list(enzyme_counts[enz].values())), dtype=numpy.float64)
+    #         # enzyme_sd[enz] = numpy.var(list(enzyme_counts[enz].values()), dtype=numpy.float64)
+    #     else:
+    #         # remove enzyme from enzymeList
+    #         enzyme_list.remove(enz)
 
     # analysis for enzyme pairs
     for pair in itertools.combinations(enzyme_list, 2):
-        gmean_sum, pair_sd, pair_correlation = dataAnalysisMethods.analyse_pair(pair, enzyme_counts)
+        if pair[1] in enzyme_counts.keys() and pair[0] in enzyme_counts.keys():
+            gmean_sum, pair_sd, pair_correlation, sd_reduction_score_min, pval_pitman_morgan = dataAnalysisMethods.analyse_pair(pair, enzyme_counts)
 
-        sd_reduction_score_min = pair_sd - min([enzyme_sd[pair[0]], enzyme_sd[pair[1]]])
+            # sd_reduction_score_min = pair_sd - min([enzyme_sd[pair[0]], enzyme_sd[pair[1]]])
 
-        same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
+            same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
 
-        pair_var_cor[pair] = [gmean_sum, pair_sd, pair_correlation, sd_reduction_score_min, same_group, "RNA"]
+            pair_var_cor[pair] = [gmean_sum, pair_sd, pair_correlation, sd_reduction_score_min, pval_pitman_morgan, same_group, "RNA"]
 
     return pair_var_cor
 ######################################################################
@@ -438,15 +442,13 @@ def retrieve_count_data(classification_type, condition, **kwargs):
     if classification_type == "all":
         cursor.execute("SELECT EnzymeNode_id, strain, count "
                        "FROM RNAcounts "
-                       "WHERE exp_condition='" + condition + "' "
-                                                             "ORDER BY strain;")
+                       "WHERE exp_condition='" + condition + "' ORDER BY strain;")
     elif classification_type == "RMS":
         height = kwargs.get('height', 2)
-        cursor.execute("SELECT EnzymeNode_id, strain, count FROM RNAcounts "
-                       "INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) "
-                       "INNER JOIN hasEnzymeBackUp USING(EnzymeNode_id) "
-                       "WHERE exp_condition='"+condition+"' "
-                                                         "AND Enzyme_RMS_CPD.height="+str(height)+" AND RMSid IN (SELECT RMSid FROM Enzyme_RMS_CPD GROUP BY RMSid ) AND hasEnzymeBackUp.height="+str(height)+";")
+        expression = "SELECT EnzymeNode_id, strain, count FROM RNAcounts INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) INNER JOIN hasEnzymeBackUp USING(EnzymeNode_id) WHERE exp_condition='"+condition+"' AND Enzyme_RMS_CPD.height="+str(height)+" AND hasEnzymeBackUp.height="+str(height)+" AND hasEnzymeBackUp.hasBackup=1;"
+        #print(expression)
+        cursor.execute(expression)
+
     elif classification_type == "EC":
         cursor.execute("SELECT EnzymeNode_id, strain, count "
                        "FROM RNAcounts "
@@ -530,7 +532,7 @@ def retrieve_enzyme_group_cpd(classification_type, height):
         # first RMS
         cursor.execute(
             "SELECT EnzymeNode_id, RMSid FROM RNAcounts INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) WHERE height=" + str(
-                height) + " AND RMSid IN (SELECT RMSid FROM Enzyme_RMS_CPD GROUP BY RMSid ) GROUP BY EnzymeNode_id, RMSid;")
+                height) + " GROUP BY EnzymeNode_id, RMSid;")
         cpds = cursor.fetchall()
         for cpd in cpds:
             if cpd[1] in ct_enzyme_cpd.keys():
@@ -564,6 +566,102 @@ def retrieve_enzyme_group_cpd(classification_type, height):
                 enzyme_ct_cpd[cpd[0]].append(cpd[1])
 
     conn.close()
+
+    return ct_enzyme_cpd, enzyme_ct_cpd
+
+########################################################################################################################
+
+def retrieve_enzyme_group_cpd_cer(classification_type, height):
+    ct_enzyme_cpd = {}
+    enzyme_ct_cpd = {}
+
+    global host
+    global user
+    global password
+    global database
+
+    conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+    cursor = conn.cursor()
+
+    if classification_type == "RMS":
+        cursor.execute("SELECT EnzymeNode_id, RMSid FROM RNAcounts INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) "
+                       "WHERE height="+str(height)+" AND RMSid IN "
+                                                   "(SELECT RMSid "
+                                                   "FROM Enzyme_RMS_CPD GROUP BY RMSid ) "
+                                                   "GROUP BY EnzymeNode_id, RMSid;")
+        cpds = cursor.fetchall()
+        for cpd in cpds:
+            if cpd[1] in ct_enzyme_cpd.keys():
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+            else:
+                ct_enzyme_cpd[cpd[1]] = []
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+
+            if cpd[0] in enzyme_ct_cpd.keys():
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+            else:
+                enzyme_ct_cpd[cpd[0]] = []
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+
+    elif classification_type == "EC":
+        cursor.execute(
+            "SELECT EnzymeNode_id, EC_id FROM RNAcounts INNER JOIN EnzymeNode USING(EnzymeNode_id) "
+            "INNER JOIN YeastMetaBase.UniProt_ProteinAnnotation USING(ORF_id) "
+            "INNER JOIN YeastMetaBase.UP_ECnumber_CPD USING(UP_id)  GROUP BY EnzymeNode_id, EC_id;")
+        cpds = cursor.fetchall()
+        for cpd in cpds:
+            if cpd[1] in ct_enzyme_cpd.keys():
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+            else:
+                ct_enzyme_cpd[cpd[1]] = []
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+
+            if cpd[0] in enzyme_ct_cpd.keys():
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+            else:
+                enzyme_ct_cpd[cpd[0]] = []
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+
+    elif classification_type == "all":
+        # first RMS
+        cursor.execute(
+            "SELECT EnzymeNode_id, RMSid FROM RNAcounts INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) WHERE height=" + str(
+                height) + " GROUP BY EnzymeNode_id, RMSid;")
+        cpds = cursor.fetchall()
+        for cpd in cpds:
+            if cpd[1] in ct_enzyme_cpd.keys():
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+            else:
+                ct_enzyme_cpd[cpd[1]] = []
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+
+            if cpd[0] in enzyme_ct_cpd.keys():
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+            else:
+                enzyme_ct_cpd[cpd[0]] = []
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+
+        # then EC numbers
+        cursor.execute("SELECT EnzymeNode_id, EC_id FROM RNAcounts INNER JOIN EnzymeNode USING(EnzymeNode_id)"
+                       "INNER JOIN YeastMetaBase.cerProteins USING(ORF_id) INNER JOIN EC_UP_CPD USING(UP_id) "
+                       "WHERE isECcomplete=1  GROUP BY EnzymeNode_id, EC_id;")
+        cpds = cursor.fetchall()
+        for cpd in cpds:
+            if cpd[1] in ct_enzyme_cpd.keys():
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+            else:
+                ct_enzyme_cpd[cpd[1]] = []
+                ct_enzyme_cpd[cpd[1]].append(cpd[0])
+
+            if cpd[0] in enzyme_ct_cpd.keys():
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+            else:
+                enzyme_ct_cpd[cpd[0]] = []
+                enzyme_ct_cpd[cpd[0]].append(cpd[1])
+
+    conn.close()
+
+
     return ct_enzyme_cpd, enzyme_ct_cpd
 
 
@@ -845,10 +943,12 @@ def retrieve_count_data_cer(classification_type, **kwargs):
                        "FROM RNAcounts ORDER BY strain;")
     elif classification_type == "RMS":
         height = kwargs.get('height', 2)
+        heightm1 = int(height)-1
         cursor.execute("SELECT EnzymeNode_id, strain, count FROM RNAcounts "
                        "INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) "
                        "INNER JOIN hasEnzymeBackUp USING(EnzymeNode_id) "
-                       "WHERE Enzyme_RMS_CPD.height="+str(height)+" AND RMSid IN (SELECT RMSid FROM Enzyme_RMS_CPD GROUP BY RMSid ) AND hasEnzymeBackUp.height="+str(height)+";")
+                       "WHERE Enzyme_RMS_CPD.height="+str(height)+" AND hasEnzymeBackUp.hasBackup=1 AND hasEnzymeBackUp.height="+str(height)+" GROUP BY EnzymeNode_id, strain, count;")
+                        # "WHERE Enzyme_RMS_CPD.height=" + str(height) + " GROUP BY EnzymeNode_id, strain, count;")
     elif classification_type == "EC":
         cursor.execute("SELECT EnzymeNode_id, strain, count "
                        "FROM RNAcounts "
@@ -858,6 +958,7 @@ def retrieve_count_data_cer(classification_type, **kwargs):
                        "WHERE isECcomplete=1 ;")
 
     counts = cursor.fetchall()
+    print("Data retrieval finished")
     for c in counts:
         # 0: EnzymeNode_id, 1=strain , 2 =count
 
@@ -945,7 +1046,7 @@ def retrieve_enzymes_to_study_cer(group_type, height):
     elif group_type == "RMS":
         cursor.execute(
             "SELECT DISTINCT(b.EnzymeNode_id) FROM hasEnzymeBackUp b "
-            "INNER JOIN RNAcounts r1 USING(EnzymeNode_id) "
+            "INNER JOIN RNAcounts r1 USING(EnzymeNode_id) " #)
             "WHERE b.hasBackup=1 AND b.height=" + str(height) + " ;")
 
     elif group_type == "EC":
