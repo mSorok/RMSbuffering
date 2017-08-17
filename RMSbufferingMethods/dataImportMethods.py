@@ -8,6 +8,7 @@ import numpy
 import mysql.connector
 import itertools
 import collections
+import random
 
 
 ####################################
@@ -136,15 +137,15 @@ def retrieve_pair_enzyme_data_for_tests_pombe(*args, **kwargs):
     for pair in itertools.combinations(enzyme_list, 2):
         if pair[1] in enzyme_counts_H.keys() and pair[0] in enzyme_counts_H.keys():
 
-            gmean_sum_H, pair_sd_H, pair_correlation_H, sd_reduction_score_H_min, skew_reduction_score_min_H, sdreduction_skew_H, kurtosis_reduction_score_min_H, pval_pitman_morgan_H = \
+            pair_sd_H, pair_skew_H, pair_kurtosis_H, pair_correlation_H, sd_reduction_score_H_min, skew_reduction_score_min_H, sdreduction_skew_H, kurtosis_reduction_score_min_H, sdReduction_kurtosis_H, pval_pitman_morgan_H = \
                 dataAnalysisMethods.analyse_pair(pair, enzyme_counts_H)
 
-            gmean_sum_N, pair_sd_N, pair_correlation_N, sd_reduction_score_N_min, skew_reduction_score_min_N, sdreduction_skew_N, kurtosis_reduction_score_min_N, pval_pitman_morgan_N = \
+            pair_sd_N, pair_skew_N, pair_kurtosis_N, pair_correlation_N, sd_reduction_score_N_min, skew_reduction_score_min_N, sdreduction_skew_N, kurtosis_reduction_score_min_N, sdReduction_kurtosis_N, pval_pitman_morgan_N = \
                 dataAnalysisMethods.analyse_pair(pair, enzyme_counts_N)
 
             delta_sd = pair_sd_N - pair_sd_H
 
-            sd_fc_pair, sd_reduction_fc_min, mean_fc_pair = \
+            fc_correlation, sd_reduction_fc, sd_reduction_kurtosis_fc = \
                 dataAnalysisMethods.analyse_pair_fold_change(pair, enzyme_counts_N, enzyme_counts_H)
 
             # sd_reduction_score_N_min = pair_sd_N - min([enzyme_sd[pair[0]][0], enzyme_sd[pair[1]][0]])
@@ -152,11 +153,11 @@ def retrieve_pair_enzyme_data_for_tests_pombe(*args, **kwargs):
 
             same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
 
-            pair_var_cor[pair] = [gmean_sum_N, pair_sd_N, pair_correlation_N, gmean_sum_H, pair_sd_H, pair_correlation_H,
-                                  delta_sd, sd_reduction_score_N_min, sd_reduction_score_H_min, sd_fc_pair,
-                                  sd_reduction_fc_min, mean_fc_pair, skew_reduction_score_min_N, skew_reduction_score_min_H,
+            pair_var_cor[pair] = [pair_sd_N, pair_skew_N, pair_kurtosis_N, pair_correlation_N, pair_sd_H, pair_skew_H, pair_kurtosis_H, pair_correlation_H,
+                                  delta_sd, sd_reduction_score_N_min, sd_reduction_score_H_min, fc_correlation,
+                                  sd_reduction_fc, sd_reduction_kurtosis_fc, skew_reduction_score_min_N, skew_reduction_score_min_H,
                                   kurtosis_reduction_score_min_N, kurtosis_reduction_score_min_H,
-                                  sdreduction_skew_N, sdreduction_skew_H,
+                                  sdreduction_skew_N, sdreduction_skew_H, sdReduction_kurtosis_N, sdReduction_kurtosis_H,
                                   pval_pitman_morgan_N, pval_pitman_morgan_H, same_group, "RNA"]
 
     return pair_var_cor  # , pairs_no_positive_interaction, pairs_no_negative_interaction
@@ -279,7 +280,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
     global password
     global database
     group_type = kwargs.get('enzymeClassification', "RMS")
-    # with_backup_only = kwargs.get('withBackUpOnly', False)
+    with_backup_only = kwargs.get('withBackUpOnly', False)
 
     pair_var_cor = {}
     pairs_no_positive_interaction = {}
@@ -296,7 +297,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
         # classification retrieval
         g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd_cer(group_type, height)
         # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
-        enzyme_list = retrieve_enzymes_to_study_cer(group_type, height)
+        enzyme_list = retrieve_enzymes_to_study_cer(group_type, height, with_backup_only)
 
     elif group_type == "EC":
         height = -1
@@ -306,7 +307,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
         # classification retrieval
         g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd_cer("EC", height)
         # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
-        enzyme_list = retrieve_enzymes_to_study_cer(group_type, height)
+        enzyme_list = retrieve_enzymes_to_study_cer(group_type, height, with_backup_only)
 
     elif group_type == "all":
         height = kwargs.get('height', 2)
@@ -317,7 +318,7 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
         g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd_cer(group_type, height)
 
         # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
-        enzyme_list = retrieve_enzymes_to_study_cer(group_type, height)
+        enzyme_list = retrieve_enzymes_to_study_cer(group_type, height, with_backup_only)
 
     else:
         print("Unrecognized enzyme classification :/")
@@ -339,17 +340,166 @@ def retrieve_pair_enzyme_data_for_tests_cerevisiae(**kwargs):
     # analysis for enzyme pairs
     for pair in itertools.combinations(enzyme_list, 2):
         if pair[1] in enzyme_counts.keys() and pair[0] in enzyme_counts.keys():
-            gmean_sum, pair_sd, pair_correlation, sd_reduction_score_min, pval_pitman_morgan = dataAnalysisMethods.analyse_pair(pair, enzyme_counts)
+            pair_sd, pair_skew, pair_kurtosis, pair_correlation, sd_reduction_score_min, skew_reduction_score_min, sdreduction_skew, kurtosis_reduction_score_min, sdReduction_kurtosis, pval_pitman_morgan = dataAnalysisMethods.analyse_pair(pair, enzyme_counts)
 
             # sd_reduction_score_min = pair_sd - min([enzyme_sd[pair[0]], enzyme_sd[pair[1]]])
 
             same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
 
-            pair_var_cor[pair] = [gmean_sum, pair_sd, pair_correlation, sd_reduction_score_min, pval_pitman_morgan, same_group, "RNA"]
+            pair_var_cor[pair] = [pair_sd, pair_correlation, sd_reduction_score_min, skew_reduction_score_min, kurtosis_reduction_score_min, sdreduction_skew, sdReduction_kurtosis, pair_skew, pair_kurtosis, pval_pitman_morgan, same_group, "RNA"]
 
     return pair_var_cor
+
 ######################################################################
 
+
+def retrieve_non_enzyme_pair_data_cerevisiae(**kwargs):
+    global host
+    global user
+    global password
+    global database
+
+    group_type = kwargs.get('enzymeClassification', "RMS")
+    biglist={}
+
+    non_enzyme_counts = retrieve_non_enzyme_count_data_cer(group_type)
+
+    pair_list = itertools.combinations(set(non_enzyme_counts.keys()), 2)
+    small_pair_list = random.sample(set(pair_list), 100000)
+
+    # analysis for enzyme pairs
+    for pair in small_pair_list:
+        if pair[0] in non_enzyme_counts.keys() and pair[1] in non_enzyme_counts.keys():
+            pair_sd, pair_skew, pair_kurtosis, pair_correlation, sd_reduction_score_min, skew_reduction_score_min, sdreduction_skew, kurtosis_reduction_score_min, sdReduction_kurtosis, pval_pitman_morgan = dataAnalysisMethods.analyse_pair(pair, non_enzyme_counts)
+
+            biglist[pair] = [pair_sd, pair_correlation, sd_reduction_score_min, skew_reduction_score_min,
+                              kurtosis_reduction_score_min, sdreduction_skew, sdReduction_kurtosis, pair_skew,
+                              pair_kurtosis, pval_pitman_morgan, "notEnz", "RNA"]
+
+    return biglist
+
+
+def retrieve_non_enzyme_count_data_cer(group_type):
+    global host
+    global user
+    global password
+    global database
+
+    non_enzyme_counts = collections.OrderedDict()
+    conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+    cursor = conn.cursor()
+    query = ""
+    if group_type=="RMS":
+        query="SELECT ORF_id, strain, count FROM iCerEnzNet.RNAcounts WHERE ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id)) GROUP BY ORF_id, strain, count;"
+    elif group_type=="EC":
+        query="SELECT ORF_id, strain, count FROM iCerEnzNet.RNAcounts WHERE ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN YeastMetaBase.cerProteins USING(ORF_id) INNER JOIN EC_UP_CPD USING(UP_id) WHERE isECcomplete=1) GROUP BY ORF_id, strain, count;"
+    elif group_type=="all":
+        query="SELECT ORF_id, strain, count FROM iCerEnzNet.RNAcounts WHERE ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id)) AND ORF_id NOT IN(SELECT ORF_id FROM EnzymeNode INNER JOIN YeastMetaBase.cerProteins USING(ORF_id) INNER JOIN EC_UP_CPD USING(UP_id) WHERE isECcomplete=1) GROUP BY SELECT ORF_id, strain, count"
+
+    cursor.execute(query)
+    counts = cursor.fetchall()
+    print("Non-enzyme data retrieved")
+
+    for c in counts:
+        # 0: EnzymeNode_id, 1=strain , 2 =count
+
+        if c[0] in non_enzyme_counts.keys():
+            if c[2] > 0:
+                # enzymeCounts[c[0]][c[1]]=numpy.log2(c[2])
+                non_enzyme_counts[c[0]][c[1]] = c[2]
+        else:
+            if c[2] > 0:
+                non_enzyme_counts[c[0]] = collections.OrderedDict()
+                # enzymeCounts[c[0]][c[1]]=numpy.log2(c[2])
+                non_enzyme_counts[c[0]][c[1]] = c[2]
+
+    conn.close()
+    return non_enzyme_counts
+
+####################################################################
+
+
+def retrieve_non_enzyme_pair_data_pombe(**kwargs):
+    global host
+    global user
+    global password
+    global database
+
+    group_type = kwargs.get('enzymeClassification', "RMS")
+    biglist={}
+
+    non_enzyme_counts_N = retrieve_non_enzyme_count_data_pom(group_type, "N")
+    non_enzyme_counts_H = retrieve_non_enzyme_count_data_pom(group_type, "H")
+
+
+
+    pair_list = itertools.combinations(set(non_enzyme_counts_H.keys()), 2)
+    small_pair_list = random.sample(set(pair_list), 100000)
+
+    # analysis for enzyme pairs
+    for pair in small_pair_list:
+        if pair[0] in non_enzyme_counts_N.keys() and pair[1] in non_enzyme_counts_N.keys() and pair[0] in non_enzyme_counts_H.keys() and pair[1] in non_enzyme_counts_H.keys():
+
+            pair_sd_H, pair_skew_H, pair_kurtosis_H, pair_correlation_H, sd_reduction_score_min_H, skew_reduction_score_min_H, sdreduction_skew_H, kurtosis_reduction_score_min_H, sdReduction_kurtosis_H, pval_pitman_morgan_H = dataAnalysisMethods.analyse_pair(pair, non_enzyme_counts_H)
+            pair_sd_N, pair_skew_N, pair_kurtosis_N, pair_correlation_N, sd_reduction_score_min_N, skew_reduction_score_min_N, sdreduction_skew_N, kurtosis_reduction_score_min_N, sdReduction_kurtosis_N, pval_pitman_morgan_N = dataAnalysisMethods.analyse_pair(pair, non_enzyme_counts_N)
+
+            fc_correlation, sd_reduction_fc, sd_reduction_kurtosis_fc = \
+                dataAnalysisMethods.analyse_pair_fold_change(pair, non_enzyme_counts_N, non_enzyme_counts_H)
+
+            delta_sd = pair_sd_N - pair_sd_H
+
+            biglist[pair] = [pair_sd_N, pair_skew_N, pair_kurtosis_N, pair_correlation_N, pair_sd_H, pair_skew_H, pair_kurtosis_H, pair_correlation_H,
+                                  delta_sd, sd_reduction_score_min_N, sd_reduction_score_min_H, fc_correlation,
+                                  sd_reduction_fc, sd_reduction_kurtosis_fc, skew_reduction_score_min_N, skew_reduction_score_min_H,
+                                  kurtosis_reduction_score_min_N, kurtosis_reduction_score_min_H,
+                                  sdreduction_skew_N, sdreduction_skew_H, sdReduction_kurtosis_N, sdReduction_kurtosis_H,
+                                  pval_pitman_morgan_N, pval_pitman_morgan_H, "notEnz", "RNA"]
+
+    return biglist
+
+
+
+def retrieve_non_enzyme_count_data_pom(group_type, exp_condition):
+    global host
+    global user
+    global password
+    global database
+
+    non_enzyme_counts = collections.OrderedDict()
+    conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+    cursor = conn.cursor()
+    query = ""
+    if group_type=="RMS":
+        query = "SELECT ORF_id, strain, count FROM iPomNet.RNAcounts WHERE exp_condition='" + exp_condition + "' AND ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id));"
+        #print(query)
+    elif group_type=="EC":
+        query="SELECT ORF_id, strain, count FROM iPomNet.RNAcounts WHERE exp_condition='"+exp_condition+"' AND ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN YeastMetaBase.UniProt_ProteinAnnotation USING(ORF_id) INNER JOIN YeastMetaBase.UP_ECnumber_CPD USING(UP_id) WHERE isECcomplete=1) ;"
+    elif group_type=="all":
+        query = "SELECT ORF_id, strain, count FROM iPomNet.RNAcounts WHERE exp_condition='" + exp_condition + "' AND ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id)) AND ORF_id NOT IN (SELECT ORF_id FROM EnzymeNode INNER JOIN YeastMetaBase.UniProt_ProteinAnnotation USING(ORF_id) INNER JOIN YeastMetaBase.UP_ECnumber_CPD USING(UP_id) WHERE isECcomplete=1);"
+
+    cursor.execute(query)
+    counts = cursor.fetchall()
+    print("Non-enzyme data retrieved")
+
+    for c in counts:
+        # 0: EnzymeNode_id, 1=strain , 2 =count
+
+        if c[0] in non_enzyme_counts.keys():
+            if c[2] > 0:
+                # enzymeCounts[c[0]][c[1]]=numpy.log2(c[2])
+                non_enzyme_counts[c[0]][c[1]] = c[2]
+        else:
+            if c[2] > 0:
+                non_enzyme_counts[c[0]] = collections.OrderedDict()
+                # enzymeCounts[c[0]][c[1]]=numpy.log2(c[2])
+                non_enzyme_counts[c[0]][c[1]] = c[2]
+
+    conn.close()
+    return non_enzyme_counts
+
+
+
+#####################################################################
 
 def retrieve_pair_enzyme_data_for_tests_cerevisiae_prot(**kwargs):
     # connection to the DB
@@ -1027,7 +1177,7 @@ def retrieve_count_data_prot_cer(classification_type, **kwargs):
 ########################################################################
 
 
-def retrieve_enzymes_to_study_cer(group_type, height):
+def retrieve_enzymes_to_study_cer(group_type, height, with_backup_only):
     enzyme_list = []
     global host
     global user
@@ -1037,22 +1187,27 @@ def retrieve_enzymes_to_study_cer(group_type, height):
     conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
     cursor = conn.cursor()
 
+    if with_backup_only:
+        hasBackup = "b.hasBackup=1 AND"
+    else:
+        hasBackup = ""
+
     if group_type == "all":
         cursor.execute(
             "SELECT DISTINCT(b.EnzymeNode_id) FROM hasEnzymeBackUp b "
             "INNER JOIN RNAcounts r1 USING(EnzymeNode_id) "
-            "WHERE b.hasBackup=1 AND (b.height=" + str(height) + " OR b.height=-1) ;")
+            "WHERE "+hasBackup+" (b.height=" + str(height) + " OR b.height=-1) ;")
 
     elif group_type == "RMS":
         cursor.execute(
             "SELECT DISTINCT(b.EnzymeNode_id) FROM hasEnzymeBackUp b "
             "INNER JOIN RNAcounts r1 USING(EnzymeNode_id) " #)
-            "WHERE b.hasBackup=1 AND b.height=" + str(height) + " ;")
+            "WHERE "+hasBackup+" b.height=" + str(height) + " ;")
 
     elif group_type == "EC":
         cursor.execute(
             "SELECT DISTINCT(b.EnzymeNode_id) FROM hasEnzymeBackUp b "
-            "INNER JOIN RNAcounts r1 USING(EnzymeNode_id) WHERE b.hasBackup=1 AND b.height=-1 ;")
+            "INNER JOIN RNAcounts r1 USING(EnzymeNode_id) WHERE "+hasBackup+" b.height=-1 ;")
 
     enz = cursor.fetchall()
     for e in enz:

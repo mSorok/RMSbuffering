@@ -71,11 +71,16 @@ def main():
     if organism == "pombe":
         # do for S. pombe
         if data_type == "RNA":
+            print(database)
             # do RNA
+            non_enzyme_pairs = retrieve_non_enzyme_pair_data_pombe(enzymeClassification=enzyme_classification)
+
             all_pairs_scores = retrieve_pair_enzyme_data_for_tests_pombe(enzymeClassification=enzyme_classification, height=height, with_backup_only=with_backup_only)
 
+            full_scores = {**all_pairs_scores, **non_enzyme_pairs}
+
             outfile = "/data/user/msorokin/data/DB/PomEnzNet/data/allEnzPairDataRNA.DB"
-            print_all_pairs_data(all_pairs_scores, outfile)
+            print_all_pairs_data(full_scores, outfile)
 
         elif data_type == "protein":
             # do protein
@@ -88,9 +93,15 @@ def main():
         if data_type == "RNA":
             print(database)
             # do RNA
+            non_enzyme_pairs = retrieve_non_enzyme_pair_data_cerevisiae(enzymeClassification=enzyme_classification)
+
             all_pairs_scores = retrieve_pair_enzyme_data_for_tests_cerevisiae(enzymeClassification=enzyme_classification, height=height)
+
+            full_scores = {**all_pairs_scores, **non_enzyme_pairs}
+
+
             outfile = "/data/user/msorokin/data/DB/CerEnzNet/data/allEnzPairDataRNA.DB"
-            print_all_pairs_data_cer(all_pairs_scores, outfile)
+            print_all_pairs_data_cer(full_scores, outfile)
         elif data_type == "protein":
             # do protein
             all_pairs_scores = retrieve_pair_enzyme_data_for_tests_cerevisiae_prot(enzymeClassification=enzyme_classification, height=height)
