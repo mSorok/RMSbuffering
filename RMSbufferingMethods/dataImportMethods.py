@@ -365,7 +365,7 @@ def retrieve_non_enzyme_pair_data_cerevisiae(**kwargs):
     non_enzyme_counts = retrieve_non_enzyme_count_data_cer(group_type)
 
     pair_list = itertools.combinations(set(non_enzyme_counts.keys()), 2)
-    small_pair_list = random.sample(set(pair_list), 100000)
+    small_pair_list = random.sample(set(pair_list), 500000)
 
     # analysis for enzyme pairs
     for pair in small_pair_list:
@@ -434,7 +434,7 @@ def retrieve_non_enzyme_pair_data_pombe(**kwargs):
 
 
     pair_list = itertools.combinations(set(non_enzyme_counts_H.keys()), 2)
-    small_pair_list = random.sample(set(pair_list), 100000)
+    small_pair_list = random.sample(set(pair_list), 700000)
 
     # analysis for enzyme pairs
     for pair in small_pair_list:

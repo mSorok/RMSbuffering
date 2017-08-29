@@ -53,8 +53,11 @@ def analyse_pair(pair, enzyme_counts):
     # pair_sd = numpy.std([numpy.log2(x) for x in list(sump.values()) if x > 0], dtype=numpy.float64)
     #pair_sd = numpy.var([x for x in list(sump.values()) if x > 0], dtype=numpy.float64)
     pair_sd = numpy.std([sump[x] for x in common_strains], dtype=numpy.float64, ddof=2)
-    pair_skew = scipy.stats.skew([sump[x] for x in common_strains])
-    pair_kurtosis = scipy.stats.kurtosis([sump[x] for x in common_strains], fisher=False, bias=False)
+    try:
+        pair_skew = scipy.stats.skew([sump[x] for x in common_strains])
+        pair_kurtosis = scipy.stats.kurtosis([sump[x] for x in common_strains], fisher=False, bias=False)
+    except AttributeError:
+        print("error while computing skew and/or kurtosis for pair"+pair)
 
 
     values_enz1 = [enzyme_counts[pair[0]][x] for x in common_strains ]  # [numpy.log2( enzyme_counts[pair[0]][x] ) for x in common_strains ]
