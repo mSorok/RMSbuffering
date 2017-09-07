@@ -434,7 +434,7 @@ def retrieve_non_enzyme_pair_data_pombe(**kwargs):
 
 
     pair_list = itertools.combinations(set(non_enzyme_counts_H.keys()), 2)
-    small_pair_list = random.sample(set(pair_list), 700000)
+    small_pair_list = random.sample(set(pair_list), 500000)
 
     # analysis for enzyme pairs
     for pair in small_pair_list:
@@ -627,16 +627,21 @@ def retrieve_count_data(classification_type, condition, **kwargs):
 
 ########################################################################
 
-def retrieve_enzyme_group_cpd(classification_type, height):
+def retrieve_enzyme_group_cpd(classification_type, height, **kwargs):
     ct_enzyme_cpd = {}
     enzyme_ct_cpd = {}
 
-    global host
-    global user
-    global password
-    global database
+    conn = kwargs.get("connector", None)
 
-    conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+    if conn is None:
+
+        global host
+        global user
+        global password
+        global database
+
+        conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+
     cursor = conn.cursor()
 
     if classification_type == "RMS":
@@ -844,14 +849,20 @@ def get_genetic_interactions(gen_int_type):
 #######################################################################################################################
 
 
-def retrieve_enzymes_to_study(group_type, height, with_backup_only):
+def retrieve_enzymes_to_study(group_type, height, with_backup_only, **kwargs):
     enzyme_list = []
-    global host
-    global user
-    global password
-    global database
 
-    conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+    conn = kwargs.get("connector", None)
+
+    if conn is None:
+
+        global host
+        global user
+        global password
+        global database
+
+        conn = mysql.connector.connect(host=host, user=user, password=password, database=database)
+
     cursor = conn.cursor()
 
     if with_backup_only:
@@ -1449,5 +1460,134 @@ def network_pair_qtl_analysis(**kwargs):
     return
 
 
+######################################################################
+
+
+def retrieve_count_data_good_growth(classification_type, condition, **kwargs):
+    ###################################################
+    # connection to the DB
+
+    connector = kwargs.get("connector", None)
+
+    enzyme_counts = collections.OrderedDict()
+    conn = connector
+    cursor = conn.cursor()
+    if classification_type == "all":
+        cursor.execute("SELECT EnzymeNode_id, strain, count "
+                       "FROM RNAcounts INNER JOIN YeastMetaBase.Growth USING(strain,exp_condition)"
+                       "WHERE RNAcounts.exp_condition='" + condition + "' AND effOD>=0 ORDER BY strain;")
+    elif classification_type == "RMS":
+        height = kwargs.get('height', 2)
+        expression = "SELECT EnzymeNode_id, strain, count FROM RNAcounts INNER JOIN Enzyme_RMS_CPD USING(EnzymeNode_id) INNER JOIN YeastMetaBase.Growth USING(strain, exp_condition) WHERE RNAcounts.exp_condition='"+condition+"' AND Enzyme_RMS_CPD.height="+str(height)+" AND effOD>=0;"
+        #print(expression)
+        cursor.execute(expression)
+
+    elif classification_type == "EC":
+        cursor.execute("SELECT EnzymeNode_id, strain, count "
+                       "FROM RNAcounts "
+                       "INNER JOIN EnzymeNode USING(EnzymeNode_id) "
+                       "INNER JOIN YeastMetaBase.UniProt_ProteinAnnotation USING(ORF_id) "
+                       "INNER JOIN YeastMetaBase.UP_ECnumber_CPD USING(UP_id) INNER JOIN YeastMetaBase.Growth USING(strain, exp_condition)"
+                       "WHERE exp_condition='"+condition+"' AND isECcomplete=1 AND effOD>=0;")
+
+    counts = cursor.fetchall()
+    for c in counts:
+        # 0: EnzymeNode_id, 1=strain , 2 =count
+
+        if c[0] in enzyme_counts.keys():
+            if c[2] > 0:
+                # enzymeCounts[c[0]][c[1]]=numpy.log2(c[2])
+                enzyme_counts[c[0]][c[1]] = c[2]
+        else:
+            if c[2] > 0:
+                enzyme_counts[c[0]] = collections.OrderedDict()
+                # enzymeCounts[c[0]][c[1]]=numpy.log2(c[2])
+                enzyme_counts[c[0]][c[1]] = c[2]
+
+    conn.close()
+    return enzyme_counts
+
+
+########################################################################
+
+
+
+
+def retrieve_pair_enzyme_data_good_growth(**kwargs):
+    connector = kwargs.get("connector",None)
+    data_type = kwargs.get("data_type","RNA")
+    enzyme_classification = kwargs.get("enzyme_classification", "RMS")
+    height = kwargs.get("height", 2)
+
+    pair_var_cor = {}
+    enzyme_sd = {}  # key = enzyme id, value = [ 0:SD_N, 1:SD_H, 2:delta_SD, 3: mean of the fold change, 4: SD of FC]
+
+    enzyme_counts_N = retrieve_count_data_good_growth(enzyme_classification, "N", height=height, conector=connector)
+    # OXY CONDITION
+    enzyme_counts_H = retrieve_count_data_good_growth(enzyme_classification, "H", height=height, conector=connector)
+
+    # the remaining is the classical analysis - but only on the retrieved strains with good growth
+
+
+    # classification retrieval
+    g_enz_cpd, enz_g_cpd = retrieve_enzyme_group_cpd(enzyme_classification, height, connector=connector)
+    # retrieve enzymes to study (with RMS H2 OR EC number AND not alone in their group)
+    enzyme_list = retrieve_enzymes_to_study(enzyme_classification, height, False, connector=connector)
+
+    ###################################################################################################################
+
+    # analysis for individual enzymes
+    for enz in enzyme_list:
+        if enz in enzyme_counts_H.keys() and enz in enzyme_counts_H.keys():
+            enzyme_sd[enz] = [0, 0, 0, 0, 0]  # 0:SD_N, 1:SD_H, 2:delta_SD, 3: mean of the fold change, 4: SD of FC
+            enzyme_sd[enz][0] = numpy.var(list(enzyme_counts_N[enz].values()), dtype=numpy.float64)  # SD in N condition
+            enzyme_sd[enz][1] = numpy.var(list(enzyme_counts_H[enz].values()),
+                                          dtype=numpy.float64)  # SD in OXY condition
+            enzyme_sd[enz][2] = numpy.absolute(
+                enzyme_sd[enz][0] - enzyme_sd[enz][1])  # DELTA variance between two conditions
+
+            fcs = {}  # fold change for each strain
+            for strain in enzyme_counts_H[enz].keys():
+                if strain in enzyme_counts_N[enz].keys() and enzyme_counts_N[enz][strain] != 0:
+                    fcs[strain] = numpy.log2(enzyme_counts_H[enz][strain]) / numpy.log2(enzyme_counts_N[enz][strain])
+
+            enzyme_sd[enz][3] = numpy.mean([fcs[e] for e in fcs.keys() if fcs[e] != 0],
+                                           dtype=numpy.float64)  # mean of the fold change
+            enzyme_sd[enz][4] = numpy.std([fcs[e] for e in fcs.keys() if fcs[e] != 0],
+                                          dtype=numpy.float64)  # SD of the fold change
+        else:
+            # remove enzyme from enzymeList
+            enzyme_list.remove(enz)
+
+    # analysis for enzyme pairs
+    for pair in itertools.combinations(enzyme_list, 2):
+        if pair[1] in enzyme_counts_H.keys() and pair[0] in enzyme_counts_H.keys():
+            pair_sd_H, pair_skew_H, pair_kurtosis_H, pair_correlation_H, sd_reduction_score_H_min, skew_reduction_score_min_H, sdreduction_skew_H, kurtosis_reduction_score_min_H, sdReduction_kurtosis_H, pval_pitman_morgan_H = \
+                dataAnalysisMethods.analyse_pair(pair, enzyme_counts_H)
+
+            pair_sd_N, pair_skew_N, pair_kurtosis_N, pair_correlation_N, sd_reduction_score_N_min, skew_reduction_score_min_N, sdreduction_skew_N, kurtosis_reduction_score_min_N, sdReduction_kurtosis_N, pval_pitman_morgan_N = \
+                dataAnalysisMethods.analyse_pair(pair, enzyme_counts_N)
+
+            delta_sd = pair_sd_N - pair_sd_H
+
+            fc_correlation, sd_reduction_fc, sd_reduction_kurtosis_fc = \
+                dataAnalysisMethods.analyse_pair_fold_change(pair, enzyme_counts_N, enzyme_counts_H)
+
+            # sd_reduction_score_N_min = pair_sd_N - min([enzyme_sd[pair[0]][0], enzyme_sd[pair[1]][0]])
+            # sd_reduction_score_H_min = pair_sd_H - min([enzyme_sd[pair[0]][1], enzyme_sd[pair[1]][1]])
+
+            same_group = dataAnalysisMethods.is_in_same_group(pair, enz_g_cpd)
+
+            pair_var_cor[pair] = [pair_sd_N, pair_skew_N, pair_kurtosis_N, pair_correlation_N, pair_sd_H, pair_skew_H,
+                                  pair_kurtosis_H, pair_correlation_H,
+                                  delta_sd, sd_reduction_score_N_min, sd_reduction_score_H_min, fc_correlation,
+                                  sd_reduction_fc, sd_reduction_kurtosis_fc, skew_reduction_score_min_N,
+                                  skew_reduction_score_min_H,
+                                  kurtosis_reduction_score_min_N, kurtosis_reduction_score_min_H,
+                                  sdreduction_skew_N, sdreduction_skew_H, sdReduction_kurtosis_N,
+                                  sdReduction_kurtosis_H,
+                                  pval_pitman_morgan_N, pval_pitman_morgan_H, same_group, "RNA"]
+
+    return pair_var_cor  # , pairs_no_positive_interaction, pairs_no_negative_interaction
 
 
